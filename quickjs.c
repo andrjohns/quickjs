@@ -213,6 +213,32 @@ typedef enum {
     JS_GC_PHASE_REMOVE_CYCLES,
 } JSGCPhaseEnum;
 
+// Forward-declarations of enums gives -Wpedantic warning, so
+// include full declaration early
+#ifdef STRICT_R_HEADERS
+enum OPCodeEnum {
+#define FMT(f)
+#define DEF(id, size, n_pop, n_push, f) OP_ ## id,
+#define def(id, size, n_pop, n_push, f)
+#include "quickjs-opcode.h"
+#undef def
+#undef DEF
+#undef FMT
+    OP_COUNT, /* excluding temporary opcodes */
+    /* temporary opcodes : overlap with the short opcodes */
+    OP_TEMP_START = OP_nop + 1,
+    OP___dummy = OP_TEMP_START - 1,
+#define FMT(f)
+#define DEF(id, size, n_pop, n_push, f)
+#define def(id, size, n_pop, n_push, f) OP_ ## id,
+#include "quickjs-opcode.h"
+#undef def
+#undef DEF
+#undef FMT
+    OP_TEMP_END,
+};
+#endif
+
 typedef enum OPCodeEnum OPCodeEnum;
 
 /* function pointers are used for numeric operations so that it is
@@ -493,10 +519,18 @@ struct JSString {
 #ifdef DUMP_LEAKS
     struct list_head link; /* string list */
 #endif
+// Can't use union of flexible array members in Wpedantic mode, so ignore warning
+#ifdef STRICT_R_HEADERS
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wzero-length-array"
+#endif
     union {
         uint8_t str8[0]; /* 8 bit strings will get an extra null terminator */
         uint16_t str16[0];
     } u;
+#ifdef STRICT_R_HEADERS
+#pragma GCC diagnostic pop
+#endif
 };
 
 typedef struct JSClosureVar {
@@ -623,7 +657,11 @@ typedef struct JSBoundFunction {
     JSValue func_obj;
     JSValue this_val;
     int argc;
+#ifdef STRICT_R_HEADERS
+    JSValue argv[];
+#else
     JSValue argv[0];
+#endif
 } JSBoundFunction;
 
 typedef enum JSIteratorKindEnum {
@@ -807,7 +845,11 @@ typedef struct JSJobEntry {
     JSContext *ctx;
     JSJobFunc *job_func;
     int argc;
+#ifdef STRICT_R_HEADERS
+    JSValue argv[];
+#else
     JSValue argv[0];
+#endif
 } JSJobEntry;
 
 typedef struct JSProperty {
@@ -856,7 +898,11 @@ struct JSShape {
     int deleted_prop_count;
     JSShape *shape_hash_next; /* in JSRuntime.shape_hash[h] list */
     JSObject *proto;
+#ifdef STRICT_R_HEADERS
+    JSShapeProperty prop[]; /* prop_size elements */
+#else
     JSShapeProperty prop[0]; /* prop_size elements */
+#endif
 };
 
 struct JSObject {
@@ -969,6 +1015,8 @@ typedef enum OPCodeFormat {
 #undef FMT
 } OPCodeFormat;
 
+// enum defined earlier for Wpedantic compatibility
+#ifndef STRICT_R_HEADERS
 enum OPCodeEnum {
 #define FMT(f)
 #define DEF(id, size, n_pop, n_push, f) OP_ ## id,
@@ -990,6 +1038,7 @@ enum OPCodeEnum {
 #undef FMT
     OP_TEMP_END,
 };
+#endif
 
 static int JS_InitAtoms(JSRuntime *rt);
 static JSAtom __JS_NewAtomInit(JSRuntime *rt, const char *str, int len,
@@ -5050,7 +5099,11 @@ typedef struct JSCFunctionDataRecord {
     uint8_t length;
     uint8_t data_len;
     uint16_t magic;
+#ifdef STRICT_R_HEADERS
+    JSValue data[];
+#else
     JSValue data[0];
+#endif
 } JSCFunctionDataRecord;
 
 static void js_c_function_data_finalizer(JSRuntime *rt, JSValue val)
@@ -7230,7 +7283,11 @@ static int JS_DefinePrivateField(JSContext *ctx, JSValueConst obj,
         JS_ThrowTypeErrorNotASymbol(ctx);
         goto fail;
     }
+#ifdef STRICT_R_HEADERS
+    prop = js_symbol_to_atom(ctx, name);
+#else
     prop = js_symbol_to_atom(ctx, (JSValue)name);
+#endif
     p = JS_VALUE_GET_OBJ(obj);
     prs = find_own_property(&pr, p, prop);
     if (prs) {
@@ -7261,7 +7318,11 @@ static JSValue JS_GetPrivateField(JSContext *ctx, JSValueConst obj,
     /* safety check */
     if (unlikely(JS_VALUE_GET_TAG(name) != JS_TAG_SYMBOL))
         return JS_ThrowTypeErrorNotASymbol(ctx);
+#ifdef STRICT_R_HEADERS
+    prop = js_symbol_to_atom(ctx, name);
+#else
     prop = js_symbol_to_atom(ctx, (JSValue)name);
+#endif
     p = JS_VALUE_GET_OBJ(obj);
     prs = find_own_property(&pr, p, prop);
     if (!prs) {
@@ -7288,7 +7349,11 @@ static int JS_SetPrivateField(JSContext *ctx, JSValueConst obj,
         JS_ThrowTypeErrorNotASymbol(ctx);
         goto fail;
     }
+#ifdef STRICT_R_HEADERS
+    prop = js_symbol_to_atom(ctx, name);
+#else
     prop = js_symbol_to_atom(ctx, (JSValue)name);
+#endif
     p = JS_VALUE_GET_OBJ(obj);
     prs = find_own_property(&pr, p, prop);
     if (!prs) {
@@ -7384,7 +7449,11 @@ static int JS_CheckBrand(JSContext *ctx, JSValueConst obj, JSValueConst func)
     if (unlikely(JS_VALUE_GET_TAG(obj) != JS_TAG_OBJECT))
         goto not_obj;
     p = JS_VALUE_GET_OBJ(obj);
+#ifdef STRICT_R_HEADERS
+    prs = find_own_property(&pr, p, js_symbol_to_atom(ctx, brand));
+#else
     prs = find_own_property(&pr, p, js_symbol_to_atom(ctx, (JSValue)brand));
+#endif
     if (!prs) {
         JS_ThrowTypeError(ctx, "invalid brand on object");
         return -1;
@@ -8976,7 +9045,11 @@ int JS_DefineProperty(JSContext *ctx, JSValueConst this_obj,
                 return -1;
             }
             /* this code relies on the fact that Uint32 are never allocated */
+#ifdef STRICT_R_HEADERS
+            val = JS_NewUint32(ctx, array_length);
+#else
             val = (JSValueConst)JS_NewUint32(ctx, array_length);
+#endif
             /* prs may have been modified */
             prs = find_own_property(&pr, p, prop);
             assert(prs != NULL);
@@ -15689,7 +15762,11 @@ static JSValue js_call_c_function(JSContext *ctx, JSValueConst func_obj,
 #else
     sf->js_mode = 0;
 #endif
+#ifdef STRICT_R_HEADERS
+    sf->cur_func = func_obj;
+#else
     sf->cur_func = (JSValue)func_obj;
+#endif
     sf->arg_count = argc;
     arg_buf = argv;
 
@@ -15856,7 +15933,7 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
     JSVarRef **var_refs;
     size_t alloca_size;
 
-#if !DIRECT_DISPATCH
+#if !DIRECT_DISPATCH || defined(STRICT_R_HEADERS)
 #define SWITCH(pc)      switch (opcode = *pc++)
 #define CASE(op)        case op
 #define DEFAULT         default
@@ -15933,7 +16010,11 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
     sf->js_mode = b->js_mode;
     arg_buf = argv;
     sf->arg_count = argc;
+#ifdef STRICT_R_HEADERS
+    sf->cur_func = func_obj;
+#else
     sf->cur_func = (JSValue)func_obj;
+#endif
     init_list_head(&sf->var_ref_list);
     var_refs = p->u.func.var_refs;
 
@@ -39056,8 +39137,13 @@ static int64_t JS_FlattenIntoArray(JSContext *ctx, JSValueConst target,
         if (!JS_IsUndefined(mapperFunction)) {
             JSValueConst args[3] = { element, JS_NewInt64(ctx, sourceIndex), source };
             element = JS_Call(ctx, mapperFunction, thisArg, 3, args);
+#ifdef STRICT_R_HEADERS
+            JS_FreeValue(ctx, args[0]);
+            JS_FreeValue(ctx, args[1]);
+#else
             JS_FreeValue(ctx, (JSValue)args[0]);
             JS_FreeValue(ctx, (JSValue)args[1]);
+#endif
             if (JS_IsException(element))
                 return -1;
         }
@@ -40484,7 +40570,11 @@ static JSValue js_string_match(JSContext *ctx, JSValueConst this_val,
         str = JS_NewString(ctx, "g");
         if (JS_IsException(str))
             goto fail;
+#ifdef STRICT_R_HEADERS
+        args[args_len++] = str;
+#else
         args[args_len++] = (JSValueConst)str;
+#endif
     }
     rx = JS_CallConstructor(ctx, ctx->regexp_ctor, args_len, args);
     JS_FreeValue(ctx, str);
@@ -45531,7 +45621,11 @@ static JSMapRecord *map_add_record(JSContext *ctx, JSMapState *s,
     } else {
         JS_DupValue(ctx, key);
     }
+#ifdef STRICT_R_HEADERS
+    mr->key = key;
+#else
     mr->key = (JSValue)key;
+#endif
     h = map_hash_key(ctx, key) & (s->hash_size - 1);
     list_add_tail(&mr->hash_link, &s->hash_table[h]);
     list_add_tail(&mr->link, &s->records);
@@ -45753,7 +45847,11 @@ static JSValue js_map_forEach(JSContext *ctx, JSValueConst this_val,
                 args[0] = args[1];
             else
                 args[0] = JS_DupValue(ctx, mr->value);
+#ifdef STRICT_R_HEADERS
+            args[2] = this_val;
+#else
             args[2] = (JSValue)this_val;
+#endif
             ret = JS_Call(ctx, func, this_arg, 3, (JSValueConst *)args);
             JS_FreeValue(ctx, args[0]);
             if (!magic)
@@ -46731,7 +46829,12 @@ static JSValue js_promise_all(JSContext *ctx, JSValueConst this_val,
                 goto fail_reject;
             }
             resolve_element_data[0] = JS_NewBool(ctx, FALSE);
+#ifdef STRICT_R_HEADERS
+            resolve_element_data[1] = JS_NewInt32(ctx, index);
+
+#else
             resolve_element_data[1] = (JSValueConst)JS_NewInt32(ctx, index);
+#endif
             resolve_element_data[2] = values;
             resolve_element_data[3] = resolving_funcs[is_promise_any];
             resolve_element_data[4] = resolve_element_env;
@@ -47089,8 +47192,11 @@ static JSValue js_async_from_sync_iterator_unwrap_func_create(JSContext *ctx,
                                                               BOOL done)
 {
     JSValueConst func_data[1];
-
+#ifdef STRICT_R_HEADERS
+    func_data[0] = JS_NewBool(ctx, done);
+#else
     func_data[0] = (JSValueConst)JS_NewBool(ctx, done);
+#endif
     return JS_NewCFunctionData(ctx, js_async_from_sync_iterator_unwrap,
                                1, 0, 1, func_data);
 }
@@ -52578,8 +52684,13 @@ static int js_TA_cmp_generic(const void *a, const void *b, void *opaque) {
             psc->exception = 1;
         }
     done:
+#ifdef STRICT_R_HEADERS
+        JS_FreeValue(ctx, argv[0]);
+        JS_FreeValue(ctx, argv[1]);
+#else
         JS_FreeValue(ctx, (JSValue)argv[0]);
         JS_FreeValue(ctx, (JSValue)argv[1]);
+#endif
     }
     return cmp;
 }
