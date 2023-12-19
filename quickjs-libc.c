@@ -496,7 +496,7 @@ static JSModuleDef *js_module_loader_so(JSContext *ctx,
     }
 
 #ifdef STRICT_R_HEADERS
-    init = (JSInitModuleFunc*)dlsym(hd, "js_init_module");
+    *(void **)(&init) = dlsym(hd, "js_init_module");
 #else
     init = dlsym(hd, "js_init_module");
 #endif

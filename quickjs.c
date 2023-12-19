@@ -522,7 +522,7 @@ struct JSString {
 // Can't use union of flexible array members in Wpedantic mode, so ignore warning
 #ifdef STRICT_R_HEADERS
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wzero-length-array"
+#pragma GCC diagnostic ignored "-Wpedantic"
 #endif
     union {
         uint8_t str8[0]; /* 8 bit strings will get an extra null terminator */
