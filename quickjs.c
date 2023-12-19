@@ -519,17 +519,16 @@ struct JSString {
 #ifdef DUMP_LEAKS
     struct list_head link; /* string list */
 #endif
-// Can't use union of flexible array members in Wpedantic mode, so ignore warning
 #ifdef STRICT_R_HEADERS
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-#endif
+    union {
+      __extension__  uint8_t str8[0]; /* 8 bit strings will get an extra null terminator */
+      __extension__  uint16_t str16[0];
+    } u;
+#else
     union {
         uint8_t str8[0]; /* 8 bit strings will get an extra null terminator */
         uint16_t str16[0];
     } u;
-#ifdef STRICT_R_HEADERS
-#pragma GCC diagnostic pop
 #endif
 };
 
