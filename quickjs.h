@@ -126,7 +126,7 @@ static inline JS_BOOL JS_VALUE_IS_NAN(JSValue v)
 {
     return 0;
 }
-    
+
 #elif defined(JS_NAN_BOXING)
 
 typedef uint64_t JSValue;
@@ -191,7 +191,7 @@ static inline JS_BOOL JS_VALUE_IS_NAN(JSValue v)
     tag = JS_VALUE_GET_TAG(v);
     return tag == (JS_NAN >> 32);
 }
-    
+
 #else /* !JS_NAN_BOXING */
 
 typedef union JSValueUnion {
@@ -215,8 +215,25 @@ typedef struct JSValue {
 #define JS_VALUE_GET_FLOAT64(v) ((v).u.float64)
 #define JS_VALUE_GET_PTR(v) ((v).u.ptr)
 
+// Using compound-literals in C++ mode gives warnings under -Wpedantic
+#ifdef STRICT_R_HEADERS
+static inline JSValue JS_MKVAL(int64_t tag, int32_t val) {
+    JSValue v;
+    v.u.int32 = val;
+    v.tag = tag;
+    return v;
+}
+
+static inline JSValue JS_MKPTR(int64_t tag, void* p) {
+    JSValue v;
+    v.u.ptr = p;
+    v.tag = tag;
+    return v;
+}
+#else
 #define JS_MKVAL(tag, val) (JSValue){ (JSValueUnion){ .int32 = val }, tag }
 #define JS_MKPTR(tag, p) (JSValue){ (JSValueUnion){ .ptr = p }, tag }
+#endif
 
 #define JS_TAG_IS_FLOAT64(tag) ((unsigned)(tag) == JS_TAG_FLOAT64)
 
@@ -309,7 +326,7 @@ static inline JS_BOOL JS_VALUE_IS_NAN(JSValue v)
 #define JS_EVAL_FLAG_BACKTRACE_BARRIER (1 << 6)
 /* allow top-level await in normal script. JS_Eval() returns a
    promise. Only allowed with JS_EVAL_TYPE_GLOBAL */
-#define JS_EVAL_FLAG_ASYNC (1 << 7) 
+#define JS_EVAL_FLAG_ASYNC (1 << 7)
 
 typedef JSValue JSCFunction(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 typedef JSValue JSCFunctionMagic(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic);
@@ -976,7 +993,7 @@ static inline JSValue JS_NewCFunctionMagic(JSContext *ctx, JSCFunctionMagic *fun
 {
     return JS_NewCFunction2(ctx, (JSCFunction *)func, name, length, cproto, magic);
 }
-void JS_SetConstructor(JSContext *ctx, JSValueConst func_obj, 
+void JS_SetConstructor(JSContext *ctx, JSValueConst func_obj,
                        JSValueConst proto);
 
 /* C property definition */
