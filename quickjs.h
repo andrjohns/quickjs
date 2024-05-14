@@ -403,7 +403,13 @@ JSValue js_string_codePointRange(JSContext *ctx, JSValueConst this_val,
 
 void *js_malloc_rt(JSRuntime *rt, size_t size);
 void js_free_rt(JSRuntime *rt, void *ptr);
+// Clang-18 ubsan errors when js_realloc_rt assigned to DynBufReallocFunc type
+//  - expecting void* type for first argument
+#ifdef STRICT_R_HEADERS
+void *js_realloc_rt(void *rt, void *ptr, size_t size);
+#else
 void *js_realloc_rt(JSRuntime *rt, void *ptr, size_t size);
+#endif
 size_t js_malloc_usable_size_rt(JSRuntime *rt, const void *ptr);
 void *js_mallocz_rt(JSRuntime *rt, size_t size);
 
