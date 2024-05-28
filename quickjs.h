@@ -577,9 +577,11 @@ static js_force_inline JSValue JS_NewFloat64(JSContext *ctx, double d)
         uint64_t u;
     } u, t;
     u.d = d;
-#pragma clang attribute push (__attribute__((no_sanitize("undefined"))), apply_to=function)
+#ifdef STRICT_R_HEADERS
+    val = __attribute__((no_sanitize("undefined"))) (int32_t)d;
+#else
     val = (int32_t)d;
-#pragma clang attribute pop
+#endif
     t.d = val;
     /* -0 cannot be represented as integer, so we compare the bit
         representation */
