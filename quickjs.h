@@ -578,7 +578,11 @@ static js_force_inline JSValue JS_NewFloat64(JSContext *ctx, double d)
     } u, t;
     u.d = d;
 #ifdef STRICT_R_HEADERS
-    val = __attribute__((no_sanitize("undefined"))) (int32_t)d;
+    __attribute__((no_sanitize("undefined")))
+    static inline int32_t convert_double_to_int32(double d) {
+        return (int32_t)d;
+    }
+    val = convert_double_to_int32(d);
 #else
     val = (int32_t)d;
 #endif
