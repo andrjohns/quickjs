@@ -568,6 +568,13 @@ static js_force_inline JSValue JS_NewUint32(JSContext *ctx, uint32_t val)
 JSValue JS_NewBigInt64(JSContext *ctx, int64_t v);
 JSValue JS_NewBigUint64(JSContext *ctx, uint64_t v);
 
+#ifdef STRICT_R_HEADERS
+__attribute__((no_sanitize("undefined")))
+static inline int32_t convert_double_to_int32(double d) {
+    return (int32_t)d;
+}
+#endif
+
 static js_force_inline JSValue JS_NewFloat64(JSContext *ctx, double d)
 {
     JSValue v;
@@ -578,10 +585,6 @@ static js_force_inline JSValue JS_NewFloat64(JSContext *ctx, double d)
     } u, t;
     u.d = d;
 #ifdef STRICT_R_HEADERS
-    __attribute__((no_sanitize("undefined")))
-    static inline int32_t convert_double_to_int32(double d) {
-        return (int32_t)d;
-    }
     val = convert_double_to_int32(d);
 #else
     val = (int32_t)d;
