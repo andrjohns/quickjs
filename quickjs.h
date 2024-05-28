@@ -577,7 +577,7 @@ static js_force_inline JSValue JS_NewFloat64(JSContext *ctx, double d)
         uint64_t u;
     } u, t;
     u.d = d;
-#pragma clang attribute push (__attribute__((no_sanitize("undefined"))))
+#pragma clang attribute push (__attribute__((no_sanitize("undefined"))), apply_to=function)
     val = (int32_t)d;
 #pragma clang attribute pop
     t.d = val;
