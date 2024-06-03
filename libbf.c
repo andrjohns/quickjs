@@ -5375,6 +5375,26 @@ int bf_acos(bf_t *r, const bf_t *a, limb_t prec, bf_flags_t flags)
 
 #if LIMB_BITS == 64
 
+// unsigned __int128 is an extension, use the proper type to avoid warnings
+#ifdef STRICT_R_HEADERS
+/* Note: we assume __int128 is available */
+#define muldq(r1, r0, a, b)                     \
+    do {                                        \
+        uint128_t __t;                          \
+        __t = (uint128_t)(a) * (uint128_t)(b);  \
+        r0 = __t;                               \
+        r1 = __t >> 64;                         \
+    } while (0)
+
+#define divdq(q, r, a1, a0, b)                  \
+    do {                                        \
+        uint128_t __t;                  \
+        limb_t __b = (b);                       \
+        __t = ((uint128_t)(a1) << 64) | (a0);   \
+        q = __t / __b;                                  \
+        r = __t % __b;                                  \
+    } while (0)
+#else
 /* Note: we assume __int128 is available */
 #define muldq(r1, r0, a, b)                     \
     do {                                        \
@@ -5392,7 +5412,7 @@ int bf_acos(bf_t *r, const bf_t *a, limb_t prec, bf_flags_t flags)
         q = __t / __b;                                  \
         r = __t % __b;                                  \
     } while (0)
-
+#endif
 #else
 
 #define muldq(r1, r0, a, b)                     \

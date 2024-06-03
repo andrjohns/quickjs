@@ -215,8 +215,25 @@ typedef struct JSValue {
 #define JS_VALUE_GET_FLOAT64(v) ((v).u.float64)
 #define JS_VALUE_GET_PTR(v) ((v).u.ptr)
 
+// Using compound-literals in C++ mode gives warnings under -Wpedantic
+#ifdef STRICT_R_HEADERS
+static inline JSValue JS_MKVAL(int64_t tag, int32_t val) {
+    JSValue v;
+    v.u.int32 = val;
+    v.tag = tag;
+    return v;
+}
+
+static inline JSValue JS_MKPTR(int64_t tag, void* p) {
+    JSValue v;
+    v.u.ptr = p;
+    v.tag = tag;
+    return v;
+}
+#else
 #define JS_MKVAL(tag, val) (JSValue){ (JSValueUnion){ .int32 = val }, tag }
 #define JS_MKPTR(tag, p) (JSValue){ (JSValueUnion){ .ptr = p }, tag }
+#endif
 
 #define JS_TAG_IS_FLOAT64(tag) ((unsigned)(tag) == JS_TAG_FLOAT64)
 
@@ -386,7 +403,13 @@ JSValue js_string_codePointRange(JSContext *ctx, JSValueConst this_val,
 
 void *js_malloc_rt(JSRuntime *rt, size_t size);
 void js_free_rt(JSRuntime *rt, void *ptr);
+// Clang-18 ubsan errors when js_realloc_rt assigned to DynBufReallocFunc type
+//  - expecting void* type for first argument
+#ifdef STRICT_R_HEADERS
+void *js_realloc_rt(void *rt, void *ptr, size_t size);
+#else
 void *js_realloc_rt(JSRuntime *rt, void *ptr, size_t size);
+#endif
 size_t js_malloc_usable_size_rt(JSRuntime *rt, const void *ptr);
 void *js_mallocz_rt(JSRuntime *rt, size_t size);
 
@@ -545,6 +568,16 @@ static js_force_inline JSValue JS_NewUint32(JSContext *ctx, uint32_t val)
 JSValue JS_NewBigInt64(JSContext *ctx, int64_t v);
 JSValue JS_NewBigUint64(JSContext *ctx, uint64_t v);
 
+#ifdef STRICT_R_HEADERS
+// QJS tries to cast to int32_t to see if the value can be represented with
+// less memory, but this results in undefined-beheaviour sanitizer errors.
+// As this is intentional, disable the sanitizer for this function.
+__attribute__((no_sanitize("undefined")))
+static inline int32_t try_double_to_int32(double d) {
+    return (int32_t)d;
+}
+#endif
+
 static js_force_inline JSValue JS_NewFloat64(JSContext *ctx, double d)
 {
     JSValue v;
@@ -554,7 +587,11 @@ static js_force_inline JSValue JS_NewFloat64(JSContext *ctx, double d)
         uint64_t u;
     } u, t;
     u.d = d;
+#ifdef STRICT_R_HEADERS
+    val = try_double_to_int32(d);
+#else
     val = (int32_t)d;
+#endif
     t.d = val;
     /* -0 cannot be represented as integer, so we compare the bit
         representation */
@@ -669,7 +706,12 @@ static inline JSValue JS_DupValue(JSContext *ctx, JSValueConst v)
         JSRefCountHeader *p = (JSRefCountHeader *)JS_VALUE_GET_PTR(v);
         p->ref_count++;
     }
+// JSValue and JSValueConst are the same type, giving Wpedantic warnings
+#ifdef STRICT_R_HEADERS
+    return v;
+#else
     return (JSValue)v;
+#endif
 }
 
 static inline JSValue JS_DupValueRT(JSRuntime *rt, JSValueConst v)
@@ -678,7 +720,12 @@ static inline JSValue JS_DupValueRT(JSRuntime *rt, JSValueConst v)
         JSRefCountHeader *p = (JSRefCountHeader *)JS_VALUE_GET_PTR(v);
         p->ref_count++;
     }
+// JSValue and JSValueConst are the same type, giving Wpedantic warnings
+#ifdef STRICT_R_HEADERS
+    return v;
+#else
     return (JSValue)v;
+#endif
 }
 
 int JS_ToBool(JSContext *ctx, JSValueConst val); /* return -1 for JS_EXCEPTION */

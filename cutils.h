@@ -28,6 +28,12 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
+#ifdef STRICT_R_HEADERS
+#ifdef __cplusplus
+extern "C" {
+#endif
+#endif
+
 /* set if CPU is big endian */
 #undef WORDS_BIGENDIAN
 
@@ -54,11 +60,14 @@
 
 typedef int BOOL;
 
+// Conflicts with Rboolean declaration
+#ifndef STRICT_R_HEADERS
 #ifndef FALSE
 enum {
     FALSE = 0,
     TRUE = 1,
 };
+#endif
 #endif
 
 void pstrcpy(char *buf, int buf_size, const char *str);
@@ -296,5 +305,9 @@ static inline int from_hex(int c)
 void rqsort(void *base, size_t nmemb, size_t size,
             int (*cmp)(const void *, const void *, void *),
             void *arg);
+
+#ifdef __cplusplus
+} /* extern "C" { */
+#endif
 
 #endif  /* CUTILS_H */
