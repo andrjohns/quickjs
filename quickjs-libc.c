@@ -47,6 +47,14 @@
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 
+// Backport FreeBSD patch from upstream
+#ifdef STRICT_R_HEADERS
+#if defined(__FreeBSD__)
+extern char **environ;
+typedef sig_t sighandler_t;
+#endif
+#endif
+
 #if defined(__APPLE__)
 typedef sig_t sighandler_t;
 #if !defined(environ)

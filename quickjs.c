@@ -38,6 +38,10 @@
 #include <malloc.h>
 #elif defined(__FreeBSD__)
 #include <malloc_np.h>
+// Need to include sys/endian.h to get the bswap definitions on FreeBSD
+#ifdef STRICT_R_HEADERS
+#include <sys/endian.h>
+#endif
 #endif
 
 #include "cutils.h"
